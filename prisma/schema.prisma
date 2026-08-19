@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// 품종 (예: 백도, 천도복숭아)
+model Product {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  isActive     Boolean  @default(true)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  priceTiers    PriceTier[]
+  deliveryItems DeliveryItem[]
+}
+
+// 품종별 크기(중량)-가격 옵션 (예: 3kg, 5kg)
+model PriceTier {
+  id           String   @id @default(cuid())
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  label        String
+  price        Int
+  isActive     Boolean  @default(true)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  deliveryItems DeliveryItem[]
+
+  @@index([productId])
+}
+
+enum OrderStatus {
+  PENDING // 입금 확인 대기
+  CONFIRMED // 입금 확인 완료
+  REJECTED // 입금 거절
+  CANCELLED // 주문 취소
+}
+
+// 주문 (주문자 정보 + 결제 상태)
+model Order {
+  id             String      @id @default(cuid())
+  orderNo        String      @unique
+  ordererName    String
+  ordererPhone   String
+  depositorName  String?
+  totalAmount    Int
+  status         OrderStatus @default(PENDING)
+  memo           String?
+  rejectedReason String?
+  confirmedAt    DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  deliveries Delivery[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// 입금 계좌 정보 (단일 행으로 관리하는 설정값)
+model BankAccount {
+  id        String   @id @default("singleton")
+  bankName  String
+  holder    String
+  accountNo String
+  phone     String
+  updatedAt DateTime @updatedAt
+}
+
+// 배송지 카드 (주문 1건에 여러 배송지)
+model Delivery {
+  id            String   @id @default(cuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  receiverName  String
+  receiverPhone String
+  zipCode       String?
+  address1      String
+  address2      String?
+  deliveryMemo  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items DeliveryItem[]
+
+  @@index([orderId])
+}
+
+// 배송지별 상품 수량 (주문 시점 가격 스냅샷 포함)
+model DeliveryItem {
+  id          String    @id @default(cuid())
+  deliveryId  String
+  delivery    Delivery  @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  priceTierId String
+  priceTier   PriceTier @relation(fields: [priceTierId], references: [id])
+  quantity    Int
+  unitPrice   Int
+  subtotal    Int
+
+  @@index([deliveryId])
+  @@index([productId])
+  @@index([priceTierId])
+}

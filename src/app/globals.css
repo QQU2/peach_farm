@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f0e4;
+  --foreground: #17281c;
 }
 
 @theme inline {
@@ -10,17 +10,44 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
+  --font-serif: "Gowun Batang", serif;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* 해암농원 브랜드 팔레트 */
+  --color-forest: #17281c;
+  --color-green: #2f6b4a;
+  --color-green-hover: #27593e;
+  --color-peach: #e8845c;
+  --color-peach-hover: #de7048;
+  --color-cream: #f7f0e4;
+  --color-cream-card: #fbf7f0;
+  --color-cream-soft: #f4f1ea;
+  --color-text-soft: #4a5c4c;
+  --color-text-muted: #6c7c6d;
+  --color-line: rgba(30, 58, 41, 0.12);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
