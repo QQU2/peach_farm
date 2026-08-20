@@ -2,25 +2,50 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { lookupOrder } from "./actions";
+import { lookupOrderByNo, lookupOrdersByOrderer } from "./actions";
+import type { OrderDetail } from "@/lib/orderDetail";
+import OrderDetailCard from "@/components/OrderDetailCard";
 
-type LookupResult = Awaited<ReturnType<typeof lookupOrder>>;
+type Mode = "orderNo" | "orderer";
 
-const won = (n: number) => n.toLocaleString("ko-KR");
+function onlyDigits(value: string) {
+  return value.replace(/[^0-9]/g, "").slice(0, 11);
+}
+
+function formatPhone(digits: string) {
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
 
 export default function CheckOrderPage() {
-  const [input, setInput] = useState("");
-  const [result, setResult] = useState<LookupResult>(null);
-  const [miss, setMiss] = useState(false);
+  const [mode, setMode] = useState<Mode>("orderNo");
+  const [orderNoInput, setOrderNoInput] = useState("");
+  const [ordererName, setOrdererName] = useState("");
+  const [ordererPhone, setOrdererPhone] = useState("");
+  const [results, setResults] = useState<OrderDetail[] | null>(null);
+  const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  function switchMode(next: Mode) {
+    setMode(next);
+    setResults(null);
+    setSearched(false);
+  }
+
   async function lookup() {
-    if (!input.trim()) return;
     setLoading(true);
     try {
-      const found = await lookupOrder(input);
-      setResult(found);
-      setMiss(!found);
+      if (mode === "orderNo") {
+        if (!orderNoInput.trim()) return;
+        const found = await lookupOrderByNo(orderNoInput);
+        setResults(found ? [found] : []);
+      } else {
+        if (!ordererName.trim() || !ordererPhone.trim()) return;
+        const found = await lookupOrdersByOrderer(ordererName, ordererPhone);
+        setResults(found);
+      }
+      setSearched(true);
     } finally {
       setLoading(false);
     }
@@ -37,59 +62,79 @@ export default function CheckOrderPage() {
         </Link>
         <h1 className="mb-1.5 font-serif text-[28px]">주문 조회</h1>
         <p className="mb-5 text-[13.5px] text-text-muted">
-          주문 완료 화면에서 받은 주문번호를 입력해 주세요.
+          주문번호 또는 주문자 정보로 조회할 수 있어요.
         </p>
-        <div className="mb-5 flex gap-2.5">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && lookup()}
-            placeholder="주문번호"
-            className="min-w-0 flex-1 rounded-2xl border border-line bg-white px-3.5 py-3.5 text-[15px]"
-          />
-          <button
-            type="button"
-            onClick={lookup}
-            disabled={loading}
-            className="rounded-2xl bg-green px-5.5 text-[15px] font-bold text-white hover:bg-green-hover disabled:opacity-50"
-          >
-            {loading ? "조회 중..." : "조회"}
-          </button>
+
+        <div className="mb-3.5 flex items-center gap-5 text-[14px]">
+          <label className="flex items-center gap-1.5">
+            <input type="radio" checked={mode === "orderNo"} onChange={() => switchMode("orderNo")} />
+            주문번호
+          </label>
+          <label className="flex items-center gap-1.5">
+            <input type="radio" checked={mode === "orderer"} onChange={() => switchMode("orderer")} />
+            주문자 + 전화번호
+          </label>
         </div>
 
-        {miss && (
-          <div className="rounded-[18px] border border-dashed border-line px-6.5 py-7 text-center text-[13.5px] text-text-muted">
-            해당 주문번호의 주문을 찾지 못했습니다.
+        {mode === "orderNo" ? (
+          <div className="mb-5 flex gap-2.5">
+            <input
+              value={orderNoInput}
+              onChange={(e) => setOrderNoInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && lookup()}
+              placeholder="주문번호"
+              className="min-w-0 flex-1 rounded-2xl border border-line bg-white px-3.5 py-3.5 text-[15px]"
+            />
+            <button
+              type="button"
+              onClick={lookup}
+              disabled={loading}
+              className="rounded-2xl bg-green px-5.5 text-[15px] font-bold text-white hover:bg-green-hover disabled:opacity-50"
+            >
+              {loading ? "조회 중..." : "조회"}
+            </button>
+          </div>
+        ) : (
+          <div className="mb-5 flex flex-col gap-2.5">
+            <div className="flex gap-2.5">
+              <input
+                value={ordererName}
+                onChange={(e) => setOrdererName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && lookup()}
+                placeholder="주문자 성명"
+                className="min-w-0 flex-3 rounded-2xl border border-line bg-white px-3.5 py-3.5 text-[15px]"
+              />
+              <input
+                value={formatPhone(ordererPhone)}
+                onChange={(e) => setOrdererPhone(onlyDigits(e.target.value))}
+                onKeyDown={(e) => e.key === "Enter" && lookup()}
+                inputMode="numeric"
+                placeholder="주문자 연락처"
+                className="min-w-0 flex-7 rounded-2xl border border-line bg-white px-3.5 py-3.5 text-[15px]"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={lookup}
+              disabled={loading}
+              className="w-full rounded-2xl bg-green py-3.5 text-[15px] font-bold text-white hover:bg-green-hover disabled:opacity-50"
+            >
+              {loading ? "조회 중..." : "조회"}
+            </button>
           </div>
         )}
 
-        {result && (
-          <div className="rounded-[22px] border border-line bg-cream-card p-5" style={{ animation: "pop .28s ease both" }}>
-            <div className="text-[11.5px] tracking-[0.16em] text-text-muted">주문번호</div>
-            <div className="mb-4 font-serif text-xl font-bold">{result.orderNo}</div>
-            <div className="flex flex-col gap-2.5 text-sm">
-              <div className="flex gap-3.5">
-                <span className="w-14.5 text-[13px] text-text-muted">상품</span>
-                <span>{result.items}</span>
-              </div>
-              <div className="flex gap-3.5">
-                <span className="w-14.5 text-[13px] text-text-muted">금액</span>
-                <strong>{won(result.amount)} 원</strong>
-              </div>
-              <div className="flex gap-3.5">
-                <span className="w-14.5 text-[13px] text-text-muted">주소</span>
-                <span>{result.addr}</span>
-              </div>
-              <div className="flex items-center gap-3.5">
-                <span className="w-14.5 text-[13px] text-text-muted">입금상태</span>
-                <span
-                  className="rounded-full px-2.5 py-1 text-[12.5px] font-bold"
-                  style={{ background: result.status.bg, color: result.status.fg }}
-                >
-                  {result.status.label}
-                </span>
-              </div>
-            </div>
+        {searched && results && results.length === 0 && (
+          <div className="rounded-[18px] border border-dashed border-line px-6.5 py-7 text-center text-[13.5px] text-text-muted">
+            해당하는 주문을 찾지 못했습니다.
+          </div>
+        )}
+
+        {results && results.length > 0 && (
+          <div className="flex flex-col gap-3.5">
+            {results.map((order) => (
+              <OrderDetailCard key={order.orderNo} order={order} />
+            ))}
           </div>
         )}
       </div>

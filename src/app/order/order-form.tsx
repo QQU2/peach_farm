@@ -1,8 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { submitOrder } from "./actions";
+import type { OrderDetail } from "@/lib/orderDetail";
+import OrderDetailCard from "@/components/OrderDetailCard";
 
 type CatalogTier = { priceTierId: string; label: string; price: number };
 type CatalogProduct = { productId: string; variety: string; tiers: CatalogTier[] };
@@ -48,6 +51,15 @@ function cardTotal(card: DeliveryCard, tiers: FlatTier[]) {
   return tiers.reduce((sum, t) => sum + (Number(card.qty[t.priceTierId]) || 0) * t.price, 0);
 }
 
+function cardBoxCount(card: DeliveryCard, tiers: FlatTier[]) {
+  return tiers.reduce((sum, t) => sum + (Number(card.qty[t.priceTierId]) || 0), 0);
+}
+
+function cardShipping(card: DeliveryCard, tiers: FlatTier[]) {
+  const boxes = cardBoxCount(card, tiers);
+  return boxes > 0 ? Math.ceil(boxes / 2) * SHIPPING : 0;
+}
+
 function itemsLabel(card: DeliveryCard, tiers: FlatTier[]) {
   const parts = tiers
     .map((t) => {
@@ -74,18 +86,18 @@ export default function OrderForm({
   const [cards, setCards] = useState<DeliveryCard[]>([newCard()]);
   const [showConfirm, setShowConfirm] = useState(false);
   const [done, setDone] = useState(false);
-  const [orderNo, setOrderNo] = useState("");
+  const [orderDetail, setOrderDetail] = useState<OrderDetail | null>(null);
   const [copyLabel, setCopyLabel] = useState("복사");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showShippingInfo, setShowShippingInfo] = useState(false);
 
   const itemsTotal = cards.reduce((s, c) => s + cardTotal(c, tiers), 0);
   const totalQty = cards.reduce(
     (s, c) => s + tiers.reduce((a, t) => a + (Number(c.qty[t.priceTierId]) || 0), 0),
     0
   );
-  const shippingCardCount = cards.filter((c) => cardTotal(c, tiers) > 0).length;
-  const shippingTotal = shippingCardCount * SHIPPING;
+  const shippingTotal = cards.reduce((s, c) => s + cardShipping(c, tiers), 0);
   const grandTotal = itemsTotal > 0 ? itemsTotal + shippingTotal : 0;
 
   function patchCard(i: number, patch: Partial<DeliveryCard>) {
@@ -119,7 +131,7 @@ export default function OrderForm({
           })),
         })),
       });
-      setOrderNo(result.orderNo);
+      setOrderDetail(result);
       setShowConfirm(false);
       setDone(true);
     } catch (e) {
@@ -129,7 +141,7 @@ export default function OrderForm({
     }
   }
 
-  if (done) {
+  if (done && orderDetail) {
     return (
       <main
         className="flex flex-1 justify-center px-5 py-7 pb-15"
@@ -171,47 +183,23 @@ export default function OrderForm({
             </div>
           )}
 
-          <div className="mb-3.5 rounded-[22px] border border-line bg-cream-card p-5">
-            <div className="mb-3.5 flex items-center justify-between">
-              <div>
-                <div className="text-[11.5px] tracking-[0.16em] text-text-muted">주문번호</div>
-                <div className="font-serif text-xl font-bold tracking-[0.01em]">{orderNo}</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard?.writeText(orderNo);
-                  setCopyLabel("복사됨");
-                  setTimeout(() => setCopyLabel("복사"), 1500);
-                }}
-                className="rounded-full border border-line px-3.5 py-2 text-[12.5px]"
-              >
-                {copyLabel}
-              </button>
-            </div>
-            <div className="flex flex-col gap-2.5 text-sm">
-              <div className="flex gap-3.5">
-                <span className="w-[58px] text-[13px] text-text-muted">상품</span>
-                <span>{itemsLabel(cards[0], tiers)}</span>
-              </div>
-              <div className="flex gap-3.5">
-                <span className="w-[58px] text-[13px] text-text-muted">금액</span>
-                <strong>{won(grandTotal)} 원</strong>
-              </div>
-              <div className="flex gap-3.5">
-                <span className="w-[58px] text-[13px] text-text-muted">주소</span>
-                <span>
-                  {cards[0].addr || "주소 미입력"}
-                  {cards.length > 1 ? ` 외 ${cards.length - 1}` : ""}
-                </span>
-              </div>
-              <div className="flex items-center gap-3.5">
-                <span className="w-[58px] text-[13px] text-text-muted">입금상태</span>
-                <span className="rounded-full bg-[#F6D3C0] px-2.5 py-1 text-[12.5px] font-bold text-[#A6482A]">
-                  미입금
-                </span>
-              </div>
-            </div>
+          <div className="mb-3.5">
+            <OrderDetailCard
+              order={orderDetail}
+              headerAction={
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(orderDetail.orderNo);
+                    setCopyLabel("복사됨");
+                    setTimeout(() => setCopyLabel("복사"), 1500);
+                  }}
+                  className="rounded-full border border-line px-3.5 py-2 text-[12.5px]"
+                >
+                  {copyLabel}
+                </button>
+              }
+            />
           </div>
           <p className="mb-4.5 text-center text-[12.5px] leading-[1.7] text-text-muted">
             입금되는대로 출고하며, 출고 이후 다음날 배송 받으실 수 있습니다.
@@ -238,7 +226,7 @@ export default function OrderForm({
             ← 뒤로
           </Link>
           <h1 className="font-serif text-[22px]">주문서</h1>
-          <span className="text-[12.5px] text-text-muted">카드 {cards.length}장</span>
+          <span className="text-[12.5px] text-text-muted">총 배송지 {cards.length}곳</span>
         </div>
 
         <div className="px-5 pb-3.5">
@@ -285,7 +273,7 @@ export default function OrderForm({
                     </button>
                   )}
                 </div>
-                <div className="mb-5 flex flex-col gap-3">
+                <div className="mb-3 flex flex-col gap-3">
                   <div>
                     <label className="mb-1 block text-xs text-text-muted">받는 분</label>
                     <input
@@ -315,7 +303,7 @@ export default function OrderForm({
                     />
                   </div>
                 </div>
-                <div className="mb-2.5 text-xs font-bold tracking-[0.14em] text-green">상품</div>
+                <div className="mb-1 text-xs text-text-muted">상품</div>
                 <div className="flex flex-col gap-2">
                   {tiers.map((t) => {
                     const chip = CHIP[t.variety] ?? DEFAULT_CHIP;
@@ -335,7 +323,7 @@ export default function OrderForm({
                           <div className="text-[14.5px] font-medium">{t.label}</div>
                           <div className="text-xs text-text-muted">{won(t.price)}원</div>
                         </div>
-                        <div className="flex flex-none items-center gap-0.5 overflow-hidden rounded-[10px] border border-line">
+                        <div className="flex flex-none items-center gap-0.5 overflow-hidden rounded-[10px]">
                           <button
                             type="button"
                             onClick={() => setQty(i, t.priceTierId, Math.max(0, qty - 1))}
@@ -384,11 +372,21 @@ export default function OrderForm({
         <div className="sticky bottom-0 mt-3.5 border-t border-line bg-cream/95 px-5 pb-4.5 pt-4 backdrop-blur-md">
           {error && <p className="mb-2 text-sm text-peach">{error}</p>}
           <div className="mb-1.5 flex items-baseline justify-between text-[13.5px] text-text-soft">
-            <span>배송비 {shippingCardCount > 0 ? `(배송지 ${shippingCardCount}곳 × ${won(SHIPPING)}원)` : ""}</span>
+            <span className="flex items-center gap-1">
+              배송비
+              <button
+                type="button"
+                onClick={() => setShowShippingInfo(true)}
+                className="inline-flex h-4 w-4 items-center justify-center rounded-full"
+                aria-label="배송비 안내"
+              >
+                <Image src="/info_icon1.jpg" alt="" width={16} height={16} className="rounded-full" />
+              </button>
+            </span>
             <span>{won(shippingTotal)} 원</span>
           </div>
           <div className="mb-3 flex items-baseline justify-between">
-            <span className="text-[13.5px] text-text-soft">총 {totalQty}개</span>
+            <span className="text-[13.5px] text-text-soft">금액</span>
             <span className="font-serif text-[26px] font-bold">
               총 {won(grandTotal)}
               <span className="text-base font-normal"> 원</span>
@@ -404,6 +402,38 @@ export default function OrderForm({
           </button>
         </div>
       </div>
+
+      {showShippingInfo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-forest/45 p-5"
+          style={{ animation: "fade .2s ease both" }}
+          onClick={() => setShowShippingInfo(false)}
+        >
+          <div
+            className="relative w-full max-w-100 rounded-3xl bg-cream-card p-6"
+            style={{ animation: "pop .28s ease both" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowShippingInfo(false)}
+              aria-label="닫기"
+              className="absolute right-4.5 top-4.5 flex h-7 w-7 items-center justify-center text-lg text-text-muted"
+            >
+              ×
+            </button>
+            <h3 className="mb-3 font-serif text-[19px]">배송비 안내</h3>
+            <p className="mb-4 text-[14px] leading-[1.7] text-text-soft">
+              배송지당 4,000원이며, 2박스 기준입니다. 같은 배송지에 2박스 이상이라면, 배송비가 추가됩니다.
+            </p>
+            <div className="flex flex-col gap-1.5 rounded-2xl border border-line bg-white px-4 py-3 text-[13px] text-text-soft">
+              <div className="mb-0.5 font-bold text-text-soft">[예시]</div>
+              <div>1) 배송지 1개, 3박스 → 8,000원</div>
+              <div>2) 배송지 2개, 각 2박스(총 4박스) → 8,000원</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-forest/45 p-5" style={{ animation: "fade .2s ease both" }}>

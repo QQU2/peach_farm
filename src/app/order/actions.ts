@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { generateOrderNo } from "@/lib/orderNo";
+import { buildOrderDetail, type OrderDetail } from "@/lib/orderDetail";
 
 const SHIPPING = 4000;
 
@@ -47,7 +48,7 @@ export type SubmitOrderInput = {
   cards: SubmitOrderCard[];
 };
 
-export async function submitOrder(input: SubmitOrderInput) {
+export async function submitOrder(input: SubmitOrderInput): Promise<OrderDetail> {
   const cards = input.cards
     .map((card) => ({
       ...card,
@@ -91,8 +92,14 @@ export async function submitOrder(input: SubmitOrderInput) {
   });
 
   if (totalAmount > 0) {
-    totalAmount += SHIPPING * cards.length;
+    totalAmount += cards.reduce((sum, card) => {
+      const boxCount = card.items.reduce((s, item) => s + item.quantity, 0);
+      return sum + Math.ceil(boxCount / 2) * SHIPPING;
+    }, 0);
   }
+
+  const ordererName = input.orderer || "주문자";
+  const ordererPhone = input.ordererPhone.replace(/[^0-9]/g, "");
 
   const order = await prisma.$transaction(async (tx) => {
     let orderNo = generateOrderNo();
@@ -105,11 +112,13 @@ export async function submitOrder(input: SubmitOrderInput) {
     return tx.order.create({
       data: {
         orderNo,
-        ordererName: input.orderer || "주문자",
-        ordererPhone: input.ordererPhone.replace(/[^0-9]/g, ""),
+        ordererName,
+        ordererPhone,
         totalAmount,
         deliveries: {
           create: deliveriesData.map((d) => ({
+            ordererName,
+            ordererPhone,
             receiverName: d.receiverName,
             receiverPhone: d.receiverPhone,
             address1: d.address1,
@@ -117,8 +126,13 @@ export async function submitOrder(input: SubmitOrderInput) {
           })),
         },
       },
+      include: {
+        deliveries: {
+          include: { items: { include: { product: true, priceTier: true } } },
+        },
+      },
     });
   });
 
-  return { orderNo: order.orderNo, totalAmount: order.totalAmount };
+  return buildOrderDetail(order);
 }

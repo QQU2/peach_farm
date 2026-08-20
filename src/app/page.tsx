@@ -26,7 +26,7 @@ export default function Home() {
           <br />
           🍑 해암농원입니다 🍑
         </h1>
-        <div className="mx-auto flex max-w-105 flex-col gap-3">
+        <div className="mt-7 mx-auto flex max-w-105 flex-col gap-3">
           <Link
             href="/order"
             className="flex h-14.5 items-center justify-center rounded-full bg-peach text-[17px] font-bold tracking-[0.02em] text-white shadow-[0_16px_34px_-16px_rgba(12,22,15,.8)] transition-colors hover:bg-peach-hover"

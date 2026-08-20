@@ -84,6 +84,8 @@ model Delivery {
   id            String   @id @default(cuid())
   orderId       String
   order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ordererName   String
+  ordererPhone  String
   receiverName  String
   receiverPhone String
   zipCode       String?
@@ -96,6 +98,7 @@ model Delivery {
   items DeliveryItem[]
 
   @@index([orderId])
+  @@index([ordererName, ordererPhone])
 }
 
 // 배송지별 상품 수량 (주문 시점 가격 스냅샷 포함)

@@ -186,14 +186,14 @@ export default function ProductsForm({
                       <td className="py-2.5 px-1">
                         <div className="flex items-center gap-1">
                           <input
-                            value={row.price}
+                            value={row.price ? row.price.toLocaleString("ko-KR") : ""}
                             onChange={(e) =>
                               updateLocalRow(pIndex, rIndex, { price: Number(e.target.value.replace(/[^0-9]/g, "")) || 0 })
                             }
                             onBlur={(e) =>
                               updatePriceTier(row.id, { price: Number(e.target.value.replace(/[^0-9]/g, "")) || 0 })
                             }
-                            placeholder="40000"
+                            placeholder="40,000"
                             className="w-full min-w-0 flex-1 rounded-[9px] border border-line px-1.5 py-2 text-right text-[13px]"
                           />
                           <span className="flex-none text-[13px] text-text-soft">원</span>
@@ -275,13 +275,13 @@ export default function ProductsForm({
                       <td className="py-2.5 px-1">
                         <div className="flex items-center gap-1">
                           <input
-                            value={row.price}
+                            value={row.price ? row.price.toLocaleString("ko-KR") : ""}
                             onChange={(e) =>
                               updateDraftRow(draft.localId, row.localId, {
                                 price: Number(e.target.value.replace(/[^0-9]/g, "")) || 0,
                               })
                             }
-                            placeholder="40000"
+                            placeholder="40,000"
                             className="w-full min-w-0 flex-1 rounded-[9px] border border-line px-1.5 py-2 text-right text-[13px]"
                           />
                           <span className="flex-none text-[13px] text-text-soft">원</span>

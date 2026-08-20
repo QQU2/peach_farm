@@ -46,3 +46,5 @@ next-env.d.ts
 # root-level scratch images/html (not part of the app)
 /*.png
 /*.html
+/*.jpg
+/*.jpeg
