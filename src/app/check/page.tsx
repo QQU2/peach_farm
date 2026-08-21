@@ -26,15 +26,18 @@ export default function CheckOrderPage() {
   const [results, setResults] = useState<OrderDetail[] | null>(null);
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function switchMode(next: Mode) {
     setMode(next);
     setResults(null);
     setSearched(false);
+    setError(null);
   }
 
   async function lookup() {
     setLoading(true);
+    setError(null);
     try {
       if (mode === "orderNo") {
         if (!orderNoInput.trim()) return;
@@ -46,6 +49,8 @@ export default function CheckOrderPage() {
         setResults(found);
       }
       setSearched(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "조회 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
@@ -95,8 +100,8 @@ export default function CheckOrderPage() {
             </button>
           </div>
         ) : (
-          <div className="mb-5 flex flex-col gap-2.5">
-            <div className="flex gap-2.5">
+          <div className="mb-5 flex gap-2.5">
+            <div className="flex min-w-0 flex-1 gap-2.5">
               <input
                 value={ordererName}
                 onChange={(e) => setOrdererName(e.target.value)}
@@ -117,12 +122,14 @@ export default function CheckOrderPage() {
               type="button"
               onClick={lookup}
               disabled={loading}
-              className="w-full rounded-2xl bg-green py-3.5 text-[15px] font-bold text-white hover:bg-green-hover disabled:opacity-50"
+              className="rounded-2xl bg-green px-5.5 text-[15px] font-bold text-white hover:bg-green-hover disabled:opacity-50"
             >
               {loading ? "조회 중..." : "조회"}
             </button>
           </div>
         )}
+
+        {error && <p className="mb-4 text-sm text-peach">{error}</p>}
 
         {searched && results && results.length === 0 && (
           <div className="rounded-[18px] border border-dashed border-line px-6.5 py-7 text-center text-[13.5px] text-text-muted">
